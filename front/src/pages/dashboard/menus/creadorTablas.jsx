@@ -9,91 +9,93 @@ import {
 } from "@nextui-org/react";
 import React from "react";
 import FieldGenerate from "../../../components/FieldGenerate";
-import {useForm} from "react-hook-form";
-/* const tablaCol = {
-    column_name: "id",
-    data_type: "integer",
-    is_primary_key: true,
-    is_auto_increment: true
-} */
+import { useForm } from "react-hook-form";
 
 export default function CrearTablas() {
-  const {handleSubmit, register} = useForm();
-  const [idField, setIdField] = React.useState(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const {isOpen, onOpen, onOpenChange} = useDisclosure();
+  const { handleSubmit, register, reset } = useForm();
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [campos, setCampos] = React.useState([{ key: 0 }]);
+  const [tablas, setTablas] = React.useState([]);
+  const [editarTablas, setEditarTablas] = React.useState(null);
+  const [editarFormulario, setEditarFormulario] = React.useState({
+    table_title: '',
+    table_columns: [],
+  });
 
-  const [campos, setCampos] = React.useState([
-    <FieldGenerate key={0} register={register} count={0} />,
-  ]);
+  const handleEditarTabla = (index) => {
+    setEditarTablas(index);
+    setEditarFormulario(tablas[index]);
+    onOpenChange(true);
+  };
+
+  const submitEditar = handleSubmit((data) => {
+    const actualizarTablas = [...tablas];
+    actualizarTablas[editarTablas] = dataStructure(data);
+    setTablas(actualizarTablas);
+    reset();
+    setEditarTablas(null);
+    onOpenChange(false);
+  });
+
+  const agregarCampoEdicion = () => {
+    setEditarFormulario({
+      ...editarFormulario,
+      table_columns: [...editarFormulario.table_columns, { name: '', dataType: '', length: '', AutoIncrement: false, PrimaryKey: false, NotNull: false }],
+    });
+  };
+
+  const borrarCampoEdicion = (campoIndex) => {
+    const actualizarCampos = editarFormulario.table_columns.filter((_, i) => i !== campoIndex);
+    setEditarFormulario({ ...editarFormulario, table_columns: actualizarCampos });
+  };
+
+  const actualizarCampoEdicion = (campoIndex, nuevoCampoIndex) => {
+    const actualizarCampos = [...editarFormulario.table_columns];
+    actualizarCampos[campoIndex] = nuevoCampoIndex;
+    setEditarFormulario({ ...editarFormulario, table_columns: actualizarCampos });
+  };
+
+  const handleAnidarCampos = (seleccionarTabla, seleccionarCampo) => {
+    const CampoAnidado = { name: `${seleccionarTabla}.${seleccionarCampo.name}`, type: seleccionarCampo.type };
+    setEditarFormulario({
+      ...editarFormulario,
+      table_columns: [...editarFormulario.table_columns, CampoAnidado],
+    });
+  };
 
   const handleClickerSubmit = () => {
-    const camposNuevos = [...campos];
-    const longitudNueva = campos.length;
-    camposNuevos.push(
-      <FieldGenerate
-        key={longitudNueva}
-        register={register}
-        count={longitudNueva}
-      />
-    );
-    setCampos(camposNuevos);
-    setIsDeleting(false);
+    setCampos([...campos, { key: campos.length }]);
   };
+
   const dataStructure = (data) => {
     const datosEstructurados = {
       table_title: data.title,
-      table_columns: [],
-    };
-
-    campos.forEach((valor, i) => {
-      let newObj = {};
-      for (let prop in data) {
-        if (prop[0] == i + 1) {
-          let str = prop.slice(1);
-          newObj[str] = data[prop];
+      table_columns: campos.map((_, i) => {
+        let newObj = {};
+        for (let prop in data) {
+          if (prop[0] === i + 1) {
+            let str = prop.slice(1);
+            newObj[str] = data[prop];
+          }
         }
-      }
-      if (Object.keys(newObj).length > 0) {
-        datosEstructurados.table_columns.push(newObj);
-      }
-    });
+        return newObj;
+      }).filter(col => Object.keys(col).length > 0),
+    };
     return datosEstructurados;
   };
 
-  const handlerSubmitEliminar = (e) => {
-    // hacer: se podria hacer el idField un array para que almacene todos los id que se eliminaron en la sesion y en la funcion submit se itera en el array:idField,
-    // para que elimine del objeto "data" los datos que tengan el array:idField
-    console.log(campos[0].key);
-    const id = e.target.id;
-    const camposNuevos = campos.filter((campo) => id !== Number(campo.key));
-    console.log(camposNuevos);
-    setIdField(parseInt(e.target.id) + 1);
-    setIsDeleting(true);
-    e.target.parentElement.remove();
-    console.log(campos);
+  const handleDeleteField = (index) => {
+    setCampos(campos.filter((_, i) => i !== index));
   };
+
   const submit = handleSubmit((data) => {
-    if (isDeleting) {
-      for (const prop in data) {
-        if (parseInt(prop[0]) === idField) {
-          delete data[prop];
-        }
-      }
-      const datos = dataStructure(data);
-      return console.log(datos);
-    }
-    for (const prop in data) {
-      if (parseInt(prop[0]) === idField) {
-        delete data[prop];
-      }
-    }
     const datos = dataStructure(data);
     console.log(datos);
-
-    /* 
-        createTable(data) */
+    setTablas([...tablas, datos]);
+    reset();
+    onOpenChange(false);
   });
+
   return (
     <>
       <div className="p-5">
@@ -101,27 +103,33 @@ export default function CrearTablas() {
           <Input
             label="Título de Tabla"
             placeholder="Título..."
-            name="titleTable"
-            {...register(`title`, {required: true})}
+            name="title"
+            {...register(`title`, { required: true })}
           />
           <div className="p-3">
-            {campos.map((campos, i) => {
-              return (
-                <div key={i}>
-                  <div>
-                    {campos}
-                    <Button
-                      size="sm"
-                      className="text-red-500"
-                      variant="primary"
-                      onClick={handlerSubmitEliminar}
-                      id={i}>
-                      Eliminar
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+            {campos.map((campo, i) => (
+              <div key={i}>
+                <FieldGenerate
+                  register={register}
+                  count={i}
+                  tablas={tablas}
+                  initialData={editarFormulario.table_columns[i]}
+                  onChange={(actualizarCampoEdicion) => {
+                    const actualizarCampos = [...editarFormulario.table_columns];
+                    actualizarCampos[i] = actualizarCampoEdicion;
+                    setEditarFormulario({ ...editarFormulario, table_columns: actualizarCampos });
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="text-red-500"
+                  variant="primary"
+                  onClick={() => handleDeleteField(i)}
+                >
+                  Eliminar
+                </Button>
+              </div>
+            ))}
           </div>
           <div className="text-center">
             <Button onPress={onOpen}>Crear Tabla</Button>
@@ -129,12 +137,13 @@ export default function CrearTablas() {
             <Modal
               isOpen={isOpen}
               onOpenChange={onOpenChange}
-              placement="top-center">
+              placement="top-center"
+            >
               <ModalContent>
                 {(onClose) => (
                   <>
                     <ModalHeader className="flex flex-col gap-1">
-                      ¿Estas seguro de crear esta tabla?
+                      ¿Estás seguro de crear esta tabla?
                     </ModalHeader>
                     <ModalFooter>
                       <Button color="danger" variant="flat" onPress={onClose}>
@@ -142,8 +151,9 @@ export default function CrearTablas() {
                       </Button>
                       <Button
                         color="primary"
-                        type="submit" /* onPress={onClose} */
-                        onClick={submit}>
+                        type="submit"
+                        onClick={submit}
+                      >
                         Crear
                       </Button>
                     </ModalFooter>
@@ -153,7 +163,83 @@ export default function CrearTablas() {
             </Modal>
           </div>
         </form>
+
+        {/* Sección para mostrar las tablas creadas */}
+        <div className="mt-5">
+          <h2>Tablas Creadas</h2>
+          {tablas.length === 0 ? (
+            <p>No se han creado tablas todavía.</p>
+          ) : (
+            tablas.map((tabla, index) => (
+              <div key={index} className="mb-4 p-3 border rounded">
+                <h3>{tabla.table_title}</h3>
+                <ul>
+                  {tabla.table_columns.map((col, idx) => (
+                    <li key={idx}>
+                      {col.name} - {col.dataType}
+                    </li>
+                  ))}
+                </ul>
+                <Button onClick={() => handleEditarTabla(index)}>Editar</Button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+
+      {/* Modal de Edición de Tabla */}
+      <Modal  
+        isOpen={editarTablas !== null}
+        onOpenChange={() => setEditarTablas(null)}
+        placement="top-center"
+        size="xl"
+      >
+        <ModalContent>
+          <form onSubmit={submitEditar}>
+            <ModalHeader className="flex flex-col gap-1">
+              Editar Tabla
+            </ModalHeader>
+            <Input
+              label="Título de la tabla"
+              placeholder="Título..."
+              name="title"
+              value={editarFormulario.table_title || ''}
+              onChange={(e) => setEditarFormulario({ ...editarFormulario, table_title: e.target.value })}
+              {...register('title', { required: true })}
+            />
+            <div className="p-3">
+              {editarFormulario.table_columns && editarFormulario.table_columns.map((campo, i) => (
+                <div key={i}>
+                  <FieldGenerate
+                    register={register}
+                    count={i}
+                    initialData={campo}
+                    onChange={(data) => actualizarCampoEdicion(i, data)}
+                    tablas={tablas} // Pasar tablas para el campo anidado
+                  />
+                  <Button
+                    size="sm"
+                    className="text-red-500"
+                    variant="primary"
+                    onClick={() => borrarCampoEdicion(i)}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              ))}
+              <Button onClick={agregarCampoEdicion}>Agregar Campo</Button>
+            </div>
+            <ModalFooter>
+              <Button color="danger" variant="flat" onPress={() => setEditarTablas(null)}>
+                Cancelar
+              </Button>
+              <Button color='primary' type="submit">
+                Guardar
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
     </>
   );
 }
