@@ -71,17 +71,21 @@ export default function CrearTablas() {
     const datosEstructurados = {
       table_title: data.title,
       table_columns: campos.map((_, i) => {
-        let newObj = {};
-        for (let prop in data) {
-          if (prop[0] === i + 1) {
-            let str = prop.slice(1);
-            newObj[str] = data[prop];
-          }
-        }
-        return newObj;
-      }).filter(col => Object.keys(col).length > 0),
+        return {
+          name: data[`${i + 1}name`] || '', // Nombre del campo
+          dataType: data[`${i + 1}dataType`] || '', // Tipo de dato
+          length: data[`${i + 1}length`] || '', // Longitud
+          AutoIncrement: data[`${i + 1}AutoIncrement`] || false, // Auto Increment
+          PrimaryKey: data[`${i + 1}PrimaryKey`] || false, // Primary Key
+          NotNull: data[`${i + 1}NotNull`] || false, // Not Null
+          anidado: data[`${i + 1}anidado`] || '', // Campo anidado, si existe
+        };
+      }).filter(col => col.name && col.dataType),
     };
+    console.log('Campos generados:', campos);
+console.log('Datos en dataStructure:', datosEstructurados);
     return datosEstructurados;
+    
   };
 
   const handleDeleteField = (index) => {
